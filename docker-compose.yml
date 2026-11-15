@@ -50,6 +50,10 @@ services:
       # Browser WebRTC, the public IP is advertised to browsers as the ICE candidate
       WEBRTC_ENABLED: "true"
       WEBRTC_PUBLIC_IP: "${WEBRTC_PUBLIC_IP}"
+      # Metrics to the Prometheus of the Service Hub monitoring project, under the relay's domain as its name.
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${PURR_OTLP_ENDPOINT:-http://prometheus:9090/api/v1/otlp}"
+      OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+      OTEL_RESOURCE_ATTRIBUTES: "service.instance.id=${PURR_DOMAIN}"
     ports:
       # UDP transports are exposed directly — no TLS, no benefit to running through Traefik.
       - "7777:7777/udp"
@@ -58,6 +62,7 @@ services:
     networks:
       - web
       - purrnet
+      - service-hub
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=web"
@@ -74,3 +79,6 @@ networks:
     external: true
   purrnet:
     driver: bridge
+  # Service Hub's network, where its monitoring Prometheus takes the relay's metrics.
+  service-hub:
+    external: true
