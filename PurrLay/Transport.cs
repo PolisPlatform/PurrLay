@@ -95,6 +95,12 @@ public static partial class Transport
         }
     }
 
+    public static bool HasRoomHost(ulong roomId)
+    {
+        lock (_transportLock)
+            return _roomToHost.ContainsKey(roomId);
+    }
+
     public static void ReleaseRoomHostForMigration(ulong roomId)
     {
         PlayerInfo host;
@@ -161,6 +167,8 @@ public static partial class Transport
     {
         if (data.Array == null || data.Count == 0)
             return;
+
+        RelayMetrics.Received(data.Count);
 
         // Pipe clients are routed separately — no rooms, no host
         if (PipeRelay.IsClient(sender.connId))
@@ -263,6 +271,7 @@ public static partial class Transport
                     {
                         HTTPRestAPI.webServer?.SendOne(target, rawData);
                     }
+                    RelayMetrics.Relayed(rawData.Count);
                     break;
                 }
                 case HOST_PACKET_TYPE.KICK_PLAYER:
@@ -339,6 +348,7 @@ public static partial class Transport
             {
                 HTTPRestAPI.webServer?.SendOne(host.connId, segment);
             }
+            RelayMetrics.Relayed(segment.Length);
         }
     }
 
@@ -479,12 +489,14 @@ public static partial class Transport
                 if (room.clientSecret == auth.clientSecret)
                 {
                     _clientToRoom.Add(player, room.roomId);
+                    RelayMetrics.Joined();
                 }
                 else if (room.hostSecret == auth.clientSecret && !_roomToHost.ContainsKey(room.roomId))
                 {
                     _clientToRoom.Add(player, room.roomId);
                     _roomToHost.Add(room.roomId, player);
                     isHost = true;
+                    RelayMetrics.Joined();
                 }
                 else
                 {
